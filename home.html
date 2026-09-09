@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Pendaftaran Driver GARJEK - Connected Google Sheets</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        garjek: {
+                            50: '#eefbfa',
+                            100: '#d5f7f4',
+                            500: '#00b4d8',
+                            600: '#0077b6',
+                            700: '#03045e',
+                            green: '#10b981',
+                            accent: '#ffb703'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col antialiased">
+
+    <!-- Top Header Navigation -->
+    <header class="sticky top-0 z-40 bg-garjek-700 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('form')">
+                    <div class="w-12 h-12 bg-gradient-to-tr from-garjek-500 to-emerald-400 rounded-2xl flex items-center justify-center shadow-lg transform rotate-3 hover:rotate-0 transition-transform">
+                        <i class="fa-solid fa-motorcycle text-white text-2xl"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl font-black tracking-wider text-white">GAR<span class="text-emerald-400">JEK</span></span>
+                            <span class="bg-emerald-500/20 text-emerald-300 text-xs px-2 py-0.5 rounded-full font-semibold border border-emerald-400/30">CLOUD SHEETS</span>
+                        </div>
+                        <p class="text-xs text-slate-300 font-medium hidden sm:block">Portal Resmi Pendaftaran Driver GARJEK</p>
+                    </div>
+                </div>
+
+                <nav class="flex items-center gap-1 sm:gap-2 bg-white/10 p-1.5 rounded-2xl backdrop-blur-md border border-white/10">
+                    <button id="nav-form" onclick="switchTab('form')" class="px-3 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-emerald-500 text-white shadow-md">
+                        <i class="fa-solid fa-file-pen"></i>
+                        <span class="hidden md:inline">Form</span> Pendaftaran
+                    </button>
+                    <button id="nav-cek" onclick="switchTab('cek')" class="px-3 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 text-slate-200 hover:text-white hover:bg-white/10">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        Cek Status <span class="hidden md:inline">NIK</span>
+                    </button>
+                    <button id="nav-admin" onclick="switchTab('admin')" class="px-3 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 text-slate-200 hover:text-white hover:bg-white/10">
+                        <i class="fa-solid fa-user-shield"></i>
+                        Dashboard <span class="hidden md:inline">Admin</span>
+                    </button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Google Apps Script API Connection Banner -->
+    <div class="bg-slate-900 text-white border-b border-slate-800 px-4 py-2 text-xs">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div class="flex items-center gap-2 font-mono text-emerald-400">
+                <i class="fa-solid fa-link"></i>
+                <span class="font-bold text-slate-300">GAS Web App URL:</span>
+            </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+                <input type="text" id="gasUrlInput" placeholder="Tempel URL Deployment Google Apps Script Anda di sini..." 
+                    class="w-full sm:w-96 px-3 py-1 bg-slate-800 border border-slate-700 rounded-lg text-emerald-300 font-mono text-[11px] focus:outline-none focus:border-emerald-500">
+                <button onclick="saveGasUrl()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition-all text-xs whitespace-nowrap">
+                    Simpan Endpoint
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- SECTION 1: FORM PENDAFTARAN DRIVER -->
+        <section id="section-form" class="animate-fade-in space-y-6">
+            <div class="bg-gradient-to-r from-garjek-700 via-garjek-600 to-emerald-600 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+                <div class="relative z-10 max-w-3xl">
+                    <span class="inline-block bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest mb-3 backdrop-blur-sm">Google Sheets Live Backend</span>
+                    <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight mb-2">Pendaftaran Mitra Driver GARJEK</h1>
+                    <p class="text-slate-100 text-sm sm:text-base">Seluruh data dan foto dokumen yang Anda unggah akan secara otomatis tersimpan di Google Drive & Google Sheets Database GARJEK.</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl shadow-lg border border-slate-200 p-6 sm:p-10">
+                <form id="driverRegisterForm" onsubmit="handleRegistrationSubmit(event)" class="space-y-10">
+
+                    <!-- 1. Data Diri KTP -->
+                    <div>
+                        <div class="flex items-center gap-3 pb-3 border-b border-slate-200 mb-6">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-lg">1</div>
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-800">Data Diri Lengkap (Sesuai KTP)</h3>
+                                <p class="text-xs text-slate-500">Semua nama dan alamat wajib diisi dengan **HURUF KAPITAL**</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">NIK (16 Digit) <span class="text-red-500">*</span></label>
+                                <div class="relative">
+                                    <input type="text" id="regNik" maxlength="16" required placeholder="3275010203040005"
+                                        oninput="validateNIKInput(this)"
+                                        class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-semibold text-slate-800 focus:ring-2 focus:ring-garjek-500 tracking-wider">
+                                    <span id="nikCounter" class="absolute right-3 top-3.5 text-xs text-slate-400 font-semibold">0/16</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Nama Lengkap (KTP) <span class="text-red-500">*</span></label>
+                                <input type="text" id="regNama" required placeholder="NAMA LENGKAP HAKIKI"
+                                    oninput="this.value = this.value.toUpperCase()"
+                                    class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-semibold uppercase text-slate-800 focus:ring-2 focus:ring-garjek-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Nomor Telepon / WhatsApp <span class="text-red-500">*</span></label>
+                                <input type="tel" id="regNoHp" required placeholder="081234567890"
+                                    oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                                    class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-semibold text-slate-800 focus:ring-2 focus:ring-garjek-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Alamat Email Aktif <span class="text-red-500">*</span></label>
+                                <input type="email" id="regEmail" required placeholder="driver@garjek.com"
+                                    class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-semibold text-slate-800 focus:ring-2 focus:ring-garjek-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Wilayah Domisili -->
+                    <div>
+                        <div class="flex items-center gap-3 pb-3 border-b border-slate-200 mb-6">
+                            <div class="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-lg">2</div>
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-800">Wilayah Domisili (Wajib Huruf Kapital)</h3>
+                                <p class="text-xs text-slate-500">Isi wilayah tempat bertugas dengan **HURUF KAPITAL**</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Provinsi <span class="text-red-500">*</span></label>
+                                <input type="text" id="regProvinsi" required placeholder="JAWA BARAT" oninput="this.value = this.value.toUpperCase()" class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-semibold text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Kabupaten / Kota <span class="text-red-500">*</span></label>
+                                <input type="text" id="regKabupaten" required placeholder="KOTA BEKASI" oninput="this.value = this.value.toUpperCase()" class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-semibold text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Kecamatan <span class="text-red-500">*</span></label>
+                                <input type="text" id="regKecamatan" required placeholder="BEKASI BARAT" oninput="this.value = this.value.toUpperCase()" class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-semibold text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Kelurahan / Desa <span class="text-red-500">*</span></label>
+                                <input type="text" id="regKelurahan" required placeholder="BINTARA" oninput="this.value = this.value.toUpperCase()" class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-semibold text-sm">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Alamat Lengkap <span class="text-red-500">*</span></label>
+                            <textarea id="regAlamat" rows="2" required placeholder="JL. GARUDA NO. 12, RT 003 / RW 005" oninput="this.value = this.value.toUpperCase()" class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-semibold uppercase text-slate-800"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 3. Layanan & Kendaraan -->
+                    <div>
+                        <div class="flex items-center gap-3 pb-3 border-b border-slate-200 mb-6">
+                            <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-lg">3</div>
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-800">Layanan & Kendaraan</h3>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                            <label class="p-4 rounded-2xl border-2 border-slate-200 bg-slate-50 cursor-pointer flex items-center gap-4">
+                                <input type="radio" name="regLayanan" value="GarBike" checked class="w-5 h-5 text-emerald-600">
+                                <div>
+                                    <div class="font-bold text-slate-800">GarBike (Sepeda Motor)</div>
+                                    <p class="text-xs text-slate-500">Layanan pengantaran roda dua</p>
+                                </div>
+                            </label>
+
+                            <label class="p-4 rounded-2xl border-2 border-slate-200 bg-slate-50 cursor-pointer flex items-center gap-4">
+                                <input type="radio" name="regLayanan" value="GarCar" class="w-5 h-5 text-blue-600">
+                                <div>
+                                    <div class="font-bold text-slate-800">GarCar (Mobil)</div>
+                                    <p class="text-xs text-slate-500">Layanan pengantaran roda empat</p>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Merk & Tipe Kendaraan <span class="text-red-500">*</span></label>
+                                <input type="text" id="regJenisKendaraan" required placeholder="HONDA VARIO 125" oninput="this.value = this.value.toUpperCase()" class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-semibold">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Plat Nomor Kendaraan <span class="text-red-500">*</span></label>
+                                <input type="text" id="regPlatNomor" required placeholder="B 1234 ABC" oninput="this.value = this.value.toUpperCase()" class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-semibold">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Tahun Pembuatan <span class="text-red-500">*</span></label>
+                                <input type="number" id="regTahunKendaraan" required min="2012" max="2026" placeholder="2021" class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-semibold">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Upload Berkas -->
+                    <div>
+                        <div class="flex items-center gap-3 pb-3 border-b border-slate-200 mb-6">
+                            <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-lg">4</div>
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-800">Unggah Berkas Persyaratan (Otomatis ke Google Drive)</h3>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+                            <div class="bg-slate-50 p-4 rounded-2xl border-2 border-dashed border-slate-300 text-center">
+                                <i class="fa-solid fa-address-card text-3xl text-slate-400 mb-2"></i>
+                                <h5 class="font-bold text-xs uppercase mb-1">Foto KTP <span class="text-red-500">*</span></h5>
+                                <input type="file" id="fileKtp" accept="image/*" required class="hidden" onchange="handleFileSelect(this, 'previewKtp')">
+                                <label for="fileKtp" class="inline-block mt-2 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold cursor-pointer">Pilih File</label>
+                                <div id="previewKtp" class="mt-2 text-[11px] font-semibold text-emerald-600 truncate">Belum ada file</div>
+                            </div>
+
+                            <div class="bg-slate-50 p-4 rounded-2xl border-2 border-dashed border-slate-300 text-center">
+                                <i class="fa-solid fa-id-badge text-3xl text-slate-400 mb-2"></i>
+                                <h5 class="font-bold text-xs uppercase mb-1">Foto SIM Active <span class="text-red-500">*</span></h5>
+                                <input type="file" id="fileSim" accept="image/*" required class="hidden" onchange="handleFileSelect(this, 'previewSim')">
+                                <label for="fileSim" class="inline-block mt-2 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold cursor-pointer">Pilih File</label>
+                                <div id="previewSim" class="mt-2 text-[11px] font-semibold text-emerald-600 truncate">Belum ada file</div>
+                            </div>
+
+                            <div class="bg-slate-50 p-4 rounded-2xl border-2 border-dashed border-slate-300 text-center">
+                                <i class="fa-solid fa-file-invoice text-3xl text-slate-400 mb-2"></i>
+                                <h5 class="font-bold text-xs uppercase mb-1">Foto STNK <span class="text-red-500">*</span></h5>
+                                <input type="file" id="fileStnk" accept="image/*" required class="hidden" onchange="handleFileSelect(this, 'previewStnk')">
+                                <label for="fileStnk" class="inline-block mt-2 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold cursor-pointer">Pilih File</label>
+                                <div id="previewStnk" class="mt-2 text-[11px] font-semibold text-emerald-600 truncate">Belum ada file</div>
+                            </div>
+
+                            <div class="bg-slate-50 p-4 rounded-2xl border-2 border-dashed border-slate-300 text-center">
+                                <i class="fa-solid fa-camera text-3xl text-slate-400 mb-2"></i>
+                                <h5 class="font-bold text-xs uppercase mb-1">Foto Kendaraan <span class="text-red-500">*</span></h5>
+                                <input type="file" id="fileKendaraan" accept="image/*" required class="hidden" onchange="handleFileSelect(this, 'previewKendaraan')">
+                                <label for="fileKendaraan" class="inline-block mt-2 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold cursor-pointer">Pilih File</label>
+                                <div id="previewKendaraan" class="mt-2 text-[11px] font-semibold text-emerald-600 truncate">Belum ada file</div>
+                            </div>
+
+                            <div class="bg-slate-50 p-4 rounded-2xl border-2 border-dashed border-amber-300 text-center">
+                                <i class="fa-solid fa-user-tie text-3xl text-amber-500 mb-2"></i>
+                                <h5 class="font-bold text-xs uppercase mb-1">Pas Foto ½ Badan <span class="text-red-500">*</span></h5>
+                                <input type="file" id="filePasFoto" accept="image/*" required class="hidden" onchange="handleFileSelect(this, 'previewPasFoto')">
+                                <label for="filePasFoto" class="inline-block mt-2 px-3 py-1.5 bg-amber-50 border border-amber-300 text-amber-800 rounded-lg text-xs font-bold cursor-pointer">Pilih File</label>
+                                <div id="previewPasFoto" class="mt-2 text-[11px] font-semibold text-amber-600 truncate">Belum ada file</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. Pembayaran DANA -->
+                    <div class="bg-gradient-to-br from-blue-50 via-slate-50 to-emerald-50 rounded-3xl p-6 sm:p-8 border-2 border-emerald-200">
+                        <div class="bg-amber-500 text-slate-900 px-4 py-2.5 rounded-2xl font-black text-xs uppercase mb-6 text-center">
+                            WAJIB MEMBAYAR REGISTRASI & ATRIBUT GARJEK RP 150.000
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                            <div class="md:col-span-7 bg-white p-6 rounded-2xl border border-emerald-200 shadow-sm">
+                                <div class="bg-slate-900 text-white p-5 rounded-2xl mb-4">
+                                    <div class="flex justify-between items-start mb-4">
+                                        <span class="text-xs font-mono text-slate-400">NOMOR DANA RESMI</span>
+                                        <span class="text-xs bg-blue-500 text-white px-2 py-0.5 rounded font-bold">DANA</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-2xl font-mono font-bold tracking-widest text-emerald-400">081932592253</span>
+                                        <button type="button" onclick="copyDanaNumber()" class="px-3 py-1.5 bg-white/10 text-white rounded-lg text-xs font-bold">Copy</button>
+                                    </div>
+                                    <div class="mt-4 pt-3 border-t border-slate-800 flex justify-between text-xs">
+                                        <span class="text-slate-400">Atas Nama:</span>
+                                        <span class="font-bold text-white">AHMAD SYAIFUDDIN</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="md:col-span-5 bg-white p-6 rounded-2xl border border-slate-200 text-center">
+                                <i class="fa-solid fa-receipt text-4xl text-emerald-500 mb-2"></i>
+                                <h5 class="font-bold text-sm text-slate-800 mb-1">Unggah Struk Transfer DANA</h5>
+                                <input type="file" id="fileBayar" accept="image/*" required class="hidden" onchange="handleFileSelect(this, 'previewBayar')">
+                                <label for="fileBayar" class="w-full py-3 bg-emerald-50 text-emerald-700 border border-emerald-300 rounded-xl text-xs font-bold hover:bg-emerald-100 cursor-pointer flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i> Upload Struk DANA 150k
+                                </label>
+                                <div id="previewBayar" class="mt-2 text-xs font-bold text-emerald-600 truncate">Belum ada file dipilih</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit -->
+                    <button type="submit" id="btnSubmitForm" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-garjek-600 text-white rounded-2xl font-extrabold text-lg shadow-xl hover:shadow-2xl transition-all flex items-center justify-center gap-3">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        KIRIM PENDAFTARAN (SIMPAN KE GOOGLE SHEETS)
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- SECTION 2: CEK STATUS -->
+        <section id="section-cek" class="hidden animate-fade-in max-w-2xl mx-auto space-y-6">
+            <div class="bg-white rounded-3xl p-8 shadow-xl border border-slate-200 text-center">
+                <i class="fa-solid fa-id-card-clip text-4xl text-emerald-600 mb-4"></i>
+                <h2 class="text-2xl font-extrabold text-slate-800 mb-2">Cek Status Verifikasi Driver (Realtime Google Sheets)</h2>
+                <p class="text-slate-500 text-sm mb-6">Masukkan 16 Digit NIK KTP Anda untuk membaca data live dari database Google Sheets.</p>
+
+                <div class="flex gap-2 mb-6">
+                    <input type="text" id="searchNikInput" maxlength="16" placeholder="Masukkan 16 Digit NIK Anda..."
+                        oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                        class="w-full px-5 py-3.5 bg-slate-50 border border-slate-300 rounded-2xl font-bold text-slate-800 text-center tracking-widest text-lg">
+                    <button onclick="checkStatusFromGas()" id="btnCheckStatus" class="px-6 py-3.5 bg-garjek-600 text-white font-bold rounded-2xl shadow-lg transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-magnifying-glass"></i> Cek
+                    </button>
+                </div>
+
+                <div id="statusResultBox" class="hidden text-left border rounded-2xl p-6 bg-white shadow-md border-slate-200"></div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: DASHBOARD ADMIN -->
+        <section id="section-admin" class="hidden animate-fade-in space-y-6">
+            <!-- Login Admin -->
+            <div id="adminLoginBox" class="max-w-md mx-auto bg-white rounded-3xl p-8 shadow-2xl border border-slate-200">
+                <div class="text-center mb-6">
+                    <i class="fa-solid fa-lock text-3xl text-slate-900 mb-2"></i>
+                    <h3 class="text-xl font-extrabold text-slate-800">Login Admin GARJEK</h3>
+                </div>
+                <form onsubmit="handleAdminAuth(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Username</label>
+                        <input type="text" id="adminUser" required value="admin" class="w-full px-4 py-3 bg-slate-50 border rounded-xl font-semibold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password</label>
+                        <input type="password" id="adminPass" required value="admin123" class="w-full px-4 py-3 bg-slate-50 border rounded-xl font-semibold">
+                    </div>
+                    <button type="submit" class="w-full py-3.5 bg-slate-900 text-white font-bold rounded-xl shadow-lg">Masuk Dashboard</button>
+                </form>
+            </div>
+
+            <!-- Panel Admin -->
+            <div id="adminPanel" class="hidden space-y-6">
+                <div class="flex items-center justify-between bg-white p-6 rounded-3xl shadow-md border border-slate-200">
+                    <div>
+                        <h2 class="text-xl font-extrabold text-slate-800">Live Dashboard Admin Google Sheets</h2>
+                        <p class="text-xs text-slate-500">Kelola verifikasi driver langsung terhubung dengan database Spreadsheet</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="fetchAdminDataFromGas()" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate"></i> Refresh Data
+                        </button>
+                        <button onclick="handleAdminLogout()" class="px-4 py-2 bg-rose-50 text-rose-600 text-xs font-bold rounded-xl">Logout</button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead class="bg-slate-900 text-slate-200 uppercase font-bold">
+                            <tr>
+                                <th class="p-3.5">ID Reg</th>
+                                <th class="p-3.5">Nama & NIK</th>
+                                <th class="p-3.5">Kontak</th>
+                                <th class="p-3.5">Layanan</th>
+                                <th class="p-3.5">Berkas Drive</th>
+                                <th class="p-3.5 text-center">Status</th>
+                                <th class="p-3.5 text-center">Aksi Verifikasi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminTableBody" class="divide-y divide-slate-200 bg-white">
+                            <tr>
+                                <td colspan="7" class="text-center p-6 text-slate-400">Memuat data dari Google Sheets...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toastBox" class="fixed bottom-5 right-5 z-50 hidden">
+        <div id="toastContent" class="flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-bold text-sm bg-emerald-600">
+            <span id="toastMessage">Notifikasi</span>
+        </div>
+    </div>
+
+    <script>
+        // Storage Base64 Upload
+        const fileBase64Store = {
+            fileKtp: null,
+            fileSim: null,
+            fileStnk: null,
+            fileKendaraan: null,
+            filePasFoto: null,
+            fileBayar: null
+        };
+
+        // Inisialisasi GAS Endpoint URL dari LocalStorage
+        let GAS_WEB_APP_URL = localStorage.getItem('GARJEK_GAS_URL') || '';
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (GAS_WEB_APP_URL) {
+                document.getElementById('gasUrlInput').value = GAS_WEB_APP_URL;
+            }
+        });
+
+        function saveGasUrl() {
+            const val = document.getElementById('gasUrlInput').value.trim();
+            if(!val) {
+                showToast("Masukkan URL Web App Google Apps Script!", "error");
+                return;
+            }
+            GAS_WEB_APP_URL = val;
+            localStorage.setItem('GARJEK_GAS_URL', val);
+            showToast("Endpoint Google Apps Script berhasil disimpan!", "success");
+        }
+
+        function switchTab(tabName) {
+            document.getElementById('section-form').classList.add('hidden');
+            document.getElementById('section-cek').classList.add('hidden');
+            document.getElementById('section-admin').classList.add('hidden');
+
+            document.getElementById(`section-${tabName}`).classList.remove('hidden');
+        }
+
+        function handleFileSelect(input, previewId) {
+            const file = input.files[0];
+            const target = document.getElementById(previewId);
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    fileBase64Store[input.id] = e.target.result;
+                    target.innerText = "✓ " + file.name;
+                    target.className = "mt-2 text-[11px] font-bold text-emerald-600 truncate";
+                };
+                reader.readAsDataURL(file);
+            } else {
+                fileBase64Store[input.id] = null;
+                target.innerText = "Belum ada file";
+            }
+        }
+
+        async function handleRegistrationSubmit(e) {
+            e.preventDefault();
+
+            if (!GAS_WEB_APP_URL) {
+                showToast("Simpan URL Google Apps Script Web App terlebih dahulu di baris atas!", "error");
+                return;
+            }
+
+            const nik = document.getElementById('regNik').value;
+            if (nik.length !== 16) {
+                showToast("NIK Wajib 16 Digit angka KTP!", "error");
+                return;
+            }
+
+            const btn = document.getElementById('btnSubmitForm');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Mengunggah Berkas ke Google Drive & Sheets...`;
+
+            const payload = {
+                action: "registerDriver",
+                nik: nik,
+                nama: document.getElementById('regNama').value.toUpperCase(),
+                noHp: document.getElementById('regNoHp').value,
+                email: document.getElementById('regEmail').value,
+                wilayah: `${document.getElementById('regKelurahan').value.toUpperCase()}, ${document.getElementById('regKecamatan').value.toUpperCase()}, ${document.getElementById('regKabupaten').value.toUpperCase()}, ${document.getElementById('regProvinsi').value.toUpperCase()}`,
+                alamat: document.getElementById('regAlamat').value.toUpperCase(),
+                layanan: document.querySelector('input[name="regLayanan"]:checked').value,
+                kendaraan: `${document.getElementById('regJenisKendaraan').value.toUpperCase()} (${document.getElementById('regPlatNomor').value.toUpperCase()} - ${document.getElementById('regTahunKendaraan').value})`,
+                fileKtp: fileBase64Store.fileKtp,
+                fileSim: fileBase64Store.fileSim,
+                fileStnk: fileBase64Store.fileStnk,
+                fileKendaraan: fileBase64Store.fileKendaraan,
+                filePasFoto: fileBase64Store.filePasFoto,
+                fileBayar: fileBase64Store.fileBayar
+            };
+
+            try {
+                const res = await fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    showToast(`Pendaftaran Berhasil! ID: ${result.data.regId}`, "success");
+                    document.getElementById('driverRegisterForm').reset();
+                    document.getElementById('searchNikInput').value = nik;
+                    switchTab('cek');
+                    checkStatusFromGas();
+                } else {
+                    showToast(result.message || "Gagal mendaftar.", "error");
+                }
+            } catch (err) {
+                showToast("Error Koneksi ke Google Sheets: " + err.message, "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> KIRIM PENDAFTARAN (SIMPAN KE GOOGLE SHEETS)`;
+            }
+        }
+
+        async function checkStatusFromGas() {
+            if (!GAS_WEB_APP_URL) {
+                showToast("Masukkan URL Apps Script Web App terlebih dahulu!", "error");
+                return;
+            }
+
+            const nik = document.getElementById('searchNikInput').value.trim();
+            if (nik.length !== 16) {
+                showToast("Masukkan 16 digit NIK KTP!", "error");
+                return;
+            }
+
+            const box = document.getElementById('statusResultBox');
+            box.classList.remove('hidden');
+            box.innerHTML = `<div class="text-center text-slate-500 py-4"><i class="fa-solid fa-spinner animate-spin mr-2"></i> Membaca dari Google Sheets...</div>`;
+
+            try {
+                const res = await fetch(`${GAS_WEB_APP_URL}?action=checkStatus&nik=${nik}`);
+                const result = await res.json();
+
+                if (result.success) {
+                    const d = result.data;
+                    let badgeColor = d.status === 'Verified' ? 'bg-emerald-100 text-emerald-800' : (d.status === 'Rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800');
+
+                    box.innerHTML = `
+                        <div class="flex justify-between items-center mb-4 border-b pb-3">
+                            <div>
+                                <span class="text-xs text-slate-400 font-bold block">ID REGISTRASI</span>
+                                <span class="text-lg font-black text-slate-800">${d.regId}</span>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-xs font-bold ${badgeColor}">${d.status}</span>
+                        </div>
+                        <div class="space-y-1 text-xs">
+                            <p><strong>Nama:</strong> ${d.nama}</p>
+                            <p><strong>NIK:</strong> ${d.nik}</p>
+                            <p><strong>Layanan:</strong> ${d.layanan} - ${d.kendaraan}</p>
+                            <p><strong>Tanggal Daftar:</strong> ${d.timestamp}</p>
+                        </div>
+                        ${d.status === 'Rejected' ? `<div class="mt-3 p-3 bg-rose-50 text-rose-800 text-xs rounded-xl"><strong>Alasan Penolakan:</strong> ${d.alasanPenolakan || '-'}</div>` : ''}
+                    `;
+                } else {
+                    box.innerHTML = `<div class="text-center text-rose-600 font-bold py-2"><i class="fa-solid fa-circle-exclamation mr-1"></i> ${result.message}</div>`;
+                }
+            } catch (err) {
+                box.innerHTML = `<div class="text-center text-rose-600 font-bold py-2">Gagal terhubung ke Google Sheets server.</div>`;
+            }
+        }
+
+        function handleAdminAuth(e) {
+            e.preventDefault();
+            const u = document.getElementById('adminUser').value;
+            const p = document.getElementById('adminPass').value;
+            if (u === 'admin' && p === 'admin123') {
+                document.getElementById('adminLoginBox').classList.add('hidden');
+                document.getElementById('adminPanel').classList.remove('hidden');
+                fetchAdminDataFromGas();
+            } else {
+                showToast("Password Admin Salah!", "error");
+            }
+        }
+
+        function handleAdminLogout() {
+            document.getElementById('adminPanel').classList.add('hidden');
+            document.getElementById('adminLoginBox').classList.remove('hidden');
+        }
+
+        async function fetchAdminDataFromGas() {
+            if (!GAS_WEB_APP_URL) {
+                showToast("URL Google Apps Script belum diset!", "error");
+                return;
+            }
+
+            const tbody = document.getElementById('adminTableBody');
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-slate-400"><i class="fa-solid fa-spinner animate-spin mr-2"></i> Mengambil data dari Google Sheets...</td></tr>`;
+
+            try {
+                const res = await fetch(`${GAS_WEB_APP_URL}?action=getAllDrivers`);
+                const result = await res.json();
+
+                if (result.success && result.data) {
+                    if (result.data.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-slate-400">Belum ada pendaftar di Google Sheets.</td></tr>`;
+                        return;
+                    }
+
+                    tbody.innerHTML = '';
+                    result.data.forEach(d => {
+                        let badgeColor = d.status === 'Verified' ? 'bg-emerald-100 text-emerald-800' : (d.status === 'Rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800');
+
+                        tbody.innerHTML += `
+                            <tr class="hover:bg-slate-50 text-xs">
+                                <td class="p-3 font-bold">${d.regId}</td>
+                                <td class="p-3"><div class="font-extrabold uppercase">${d.nama}</div><div class="text-[10px] text-slate-400">NIK: ${d.nik}</div></td>
+                                <td class="p-3">${d.noHp}</td>
+                                <td class="p-3"><span class="px-2 py-0.5 rounded font-bold text-[10px] ${d.layanan==='GarBike'?'bg-emerald-100 text-emerald-700':'bg-blue-100 text-blue-700'}">${d.layanan}</span></td>
+                                <td class="p-3">
+                                    <a href="${d.fileKtp}" target="_blank" class="text-blue-600 underline text-[10px] block"><i class="fa-solid fa-folder"></i> KTP</a>
+                                    <a href="${d.fileBayar}" target="_blank" class="text-emerald-600 underline text-[10px] block"><i class="fa-solid fa-receipt"></i> Struk DANA</a>
+                                </td>
+                                <td class="p-3 text-center"><span class="px-2.5 py-1 rounded-full font-bold text-[10px] ${badgeColor}">${d.status}</span></td>
+                                <td class="p-3 text-center">
+                                    <div class="flex items-center justify-center gap-1">
+                                        <button onclick="updateStatusInGas('${d.regId}', 'Verified')" class="px-2 py-1 bg-emerald-500 text-white rounded text-[10px] font-bold"><i class="fa-solid fa-check"></i> Setujui</button>
+                                        <button onclick="updateStatusInGas('${d.regId}', 'Rejected')" class="px-2 py-1 bg-rose-500 text-white rounded text-[10px] font-bold"><i class="fa-solid fa-xmark"></i> Tolak</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-rose-500 font-bold">Gagal mengambil data dari Google Sheets.</td></tr>`;
+            }
+        }
+
+        async function updateStatusInGas(regId, status) {
+            let reason = "";
+            if (status === 'Rejected') {
+                reason = prompt("Masukkan alasan penolakan untuk pendaftar " + regId + ":");
+                if (reason === null) return; // Cancelled
+            }
+
+            try {
+                const res = await fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: "updateDriverStatus",
+                        regId: regId,
+                        status: status,
+                        alasanPenolakan: reason
+                    })
+                });
+
+                const result = await res.json();
+                if (result.success) {
+                    showToast(result.message, "success");
+                    fetchAdminDataFromGas();
+                } else {
+                    showToast(result.message, "error");
+                }
+            } catch (err) {
+                showToast("Error update status: " + err.message, "error");
+            }
+        }
+
+        function validateNIKInput(input) {
+            input.value = input.value.replace(/[^0-9]/g, '');
+            document.getElementById('nikCounter').innerText = `${input.value.length}/16`;
+        }
+
+        function copyDanaNumber() {
+            const text = "081932592253";
+            const textarea = document.createElement("textarea");
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast("Nomor DANA 081932592253 berhasil disalin!", "success");
+        }
+
+        function showToast(message, type = "success") {
+            const toastBox = document.getElementById('toastBox');
+            const toastContent = document.getElementById('toastContent');
+            const toastMessage = document.getElementById('toastMessage');
+
+            toastMessage.innerText = message;
+            toastContent.className = type === "success" 
+                ? "flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-bold text-sm bg-emerald-600"
+                : "flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-bold text-sm bg-rose-600";
+
+            toastBox.classList.remove('hidden');
+            setTimeout(() => { toastBox.classList.add('hidden'); }, 3500);
+        }
+    </script>
+</body>
+</html>
